@@ -91,7 +91,6 @@ library DegeGauss {
         
         return FixedPointMathLib.divWadUp(WAD, WAD + expResult);
     }
-
     function cdf(int256 z, int256 mu, uint256 sigma) internal pure returns (uint256) 
     {
         if
