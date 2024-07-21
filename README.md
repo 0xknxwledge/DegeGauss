@@ -2,12 +2,11 @@
 
 ## Overview
 - Inputs and Outputs are in 18 decimal fixed point representation
-- Parameters: x (variable), μ (mean), σ (standard deviation)
+- Parameters: x (realization), μ (mean), σ (standard deviation)
 - Constraints:
   - -1e20 ≤ μ ≤ 1e20
   - 0 < σ ≤ 1e19
   - x in [-1e23, 1e23]
-- Error requirement: < 1e-8 vs errcw/gaussian
 - High-precision and gas efficient computation using 128-bit IEEE 754 floating-point arithmetic
 - Max absolute error relative to errcw/gaussian on the order of 1e-17 (check Gauss.t.sol to verify and test out other parameterizations and realizations)
 
