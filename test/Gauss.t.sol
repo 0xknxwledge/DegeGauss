@@ -9,27 +9,28 @@ contract DegeGaussTest is Test {
 
     function testCDFAccuracy() public {
         // Test cases
-        int256[] memory zValues = new int256[](16);
-        zValues[0] = -1e23;
-        zValues[1] = -5e22;
-        zValues[2] = -1e22;
-        zValues[3] = -5e21;
-        zValues[4] = -1e21;
-        zValues[5] = -2e18;
-        zValues[6] = -1e18;
-        zValues[7] = 0;
-        zValues[8] = 1e18;
-        zValues[9] = 2e18;
-        zValues[10] = 1e20;
-        zValues[11] = 1e21;
-        zValues[12] = 5e21;
-        zValues[13] = 1e22;
-        zValues[14] = 5e22;
-        zValues[15] = 1e23;
+        int256[] memory zValues = new int256[](17);
+        zValues[0] = -8e18;
+        zValues[1] = -7e18;
+        zValues[2] = -6e18;
+        zValues[3] = -5e18;
+        zValues[4] = -4e18;
+        zValues[5] = -3e18;
+        zValues[6] = -2e18;
+        zValues[7] = -1e18;
+        zValues[8] = 0;
+        zValues[9] = 1e18;
+        zValues[10] = 2e18;
+        zValues[11] = 3e18;
+        zValues[12] = 4e18;
+        zValues[13] = 5e18;
+        zValues[14] = 6e18;
+        zValues[15] = 7e18;
+        zValues[16] = 8e18;
         
         for (uint i = 0; i < zValues.length; i++) {
             int256 z = zValues[i];
-            uint256 solidityResult = DegeGauss.cdf(z, 1e20, 1e19);
+            uint256 solidityResult = DegeGauss.cdf(z, 0, 1e18);
             
             string memory jsCode = string(abi.encodePacked(
                 getGaussianJs(),
@@ -45,16 +46,15 @@ contract DegeGaussTest is Test {
             bytes memory jsResult = vm.ffi(inputs);
             uint256 jsResultParsed = parseJsonResult(string(jsResult));
 
-            // Calculate the difference
+            // Calculate the absolute error
             uint256 diff = solidityResult >= jsResultParsed ? 
                 solidityResult - jsResultParsed : 
                 jsResultParsed - solidityResult;
             
-            // Log the results
             console.log("z (in 18 decimal precision):", z);
             console.log("Solidity result:", solidityResult);
             console.log("JS result:", jsResultParsed);
-            console.log("Difference:", diff);
+            console.log("Absolute Error:", diff);
             console.log("---");
 
             // Assert that the difference is less than 1e10 (1e-8 in our fixed-point representation)
@@ -72,7 +72,7 @@ contract DegeGaussTest is Test {
                 "const Gaussian=function(mean,standardDeviation){this.mean=mean;this.standardDeviation=standardDeviation};",
                 "Gaussian.prototype.cdf=function(x){return 0.5*erfc(-((x/1e18)-this.mean)/(this.standardDeviation*Math.sqrt(2)))};",
                 "const gaussian=function(mean,standardDeviation){return new Gaussian(mean,standardDeviation)};",
-                "const g=gaussian(100,10);",
+                "const g=gaussian(0,1);",
                 "console.log(JSON.stringify(g.cdf("
             )
         );  

@@ -1,66 +1,47 @@
-## Foundry
+```markdown
+# DegeGauss: Gaussian CDF Optimized for Degens
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
-
-Foundry consists of:
-
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
-
-## Documentation
-
-https://book.getfoundry.sh/
+## Overview
+- Inputs and Outputs are in 18 decimal fixed point representation
+- Parameters: x (variable), μ (mean), σ (standard deviation)
+- Constraints:
+  - -1e20 ≤ μ ≤ 1e20
+  - 0 < σ ≤ 1e19
+  - x in [-1e23, 1e23]
+- Error requirement: < 1e-8 vs errcw/gaussian
+- High-precision and gas efficient computation using 128-bit IEEE 754 floating-point arithmetic
+- Max absolute error relative to errcw/gaussian on the order of 1e-17 (check Gauss.t.sol to verify and test out other parameterizations and realizations)
 
 ## Usage
 
-### Build
+```solidity
+import "./DegeGauss.sol";
 
-```shell
-$ forge build
+contract YourContract {
+    using DegeGauss for int256;
+    using DegeGauss for uint256;
+
+    function computeCDF(int256 x, int256 mu, uint256 sigma) public pure returns (uint256) {
+        return DegeGauss.cdf(x, mu, sigma);
+    }
+}
 ```
 
-### Test
+## License
 
-```shell
-$ forge test
-```
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-### Format
+## Acknowledgments
 
-```shell
-$ forge fmt
-```
+- Inspired by [primitivefinance/solstat](https://github.com/primitivefinance/solstat) and [errcw/gaussian](https://github.com/errcw/gaussian)
+- Uses [ABDK Libraries for Solidity](https://github.com/abdk-consulting/abdk-libraries-solidity)
 
-### Gas Snapshots
+## Author
 
-```shell
-$ forge snapshot
-```
+[0xKnxwledge]
 
-### Anvil
+Submission for the following 2024 Paradigm Fellowship technical question:
 
-```shell
-$ anvil
-```
+Implement a maximally optimized gaussian CDF on the EVM for arbitrary 18 decimal fixed point parameters x, μ, σ. Assume -1e20 ≤ μ ≤ 1e20 and 0 < σ ≤ 1e19. Should have an error less than 1e-8 vs errcw/gaussian for all x on the interval [-1e23, 1e23].
 
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
 ```

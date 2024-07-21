@@ -48,14 +48,8 @@ library DegeGauss {
     function abs(int256 x) internal pure returns (uint256 y) 
     {
         if (x == type(int256).min) revert AbsOverflow();
-        if (x < 0) {
-            assembly {
-                y := add(not(x), 1)
-            }
-        } else {
-            assembly {
-                y := x
-            }
+        unchecked {
+            y = x < 0 ? uint256(-x) : uint256(x);
         }
     }
 
