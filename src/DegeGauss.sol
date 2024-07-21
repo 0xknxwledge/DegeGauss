@@ -1,101 +1,105 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8;
 
-import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+import "abdk-libraries-solidity/ABDKMathQuad.sol";
+import "forge-std/console.sol";
 
+
+/*
+    Tuff
+*/
 library DegeGauss {
-    using FixedPointMathLib for int256;
-    using FixedPointMathLib for uint256;
+    using ABDKMathQuad for uint256;
+    using ABDKMathQuad for int256;
+    using ABDKMathQuad for bytes16;
 
     // Constants are set to 18 decimal precision, 
     uint256 internal constant WAD = 1 ether; //i.e, 1e18 == 10**18 
-    
-    uint256 internal constant RV_BOUND = 1e23 * WAD; 
-    uint256 internal constant MU_BOUND = 1e20 * WAD; 
-    uint256 internal constant SIG_BOUND = 1e19 * WAD;
-    uint256 internal constant RIGHT_TAIL_BOUND = 8 * WAD;
-
-    uint256 internal constant k1 = 1595769118700000000;
+    uint256 internal constant HALF = .5 ether;
+    uint256 internal constant TWO = 2 ether;
+    uint256 internal constant RV_BOUND = 1e23; // i.e, 100000
+    uint256 internal constant MU_BOUND = 1e20; // i.e, 100
+    uint256 internal constant SIG_BOUND = 1e19; // i.e, 10
+    uint256 internal constant SQRT_2 = 1_414213562373095048;
+    int256 internal constant ERFC_A = 1_265512230000000000;
+    int256 internal constant ERFC_B = 1_000023680000000000;
+    int256 internal constant ERFC_C = 374091960000000000; 
+    int256 internal constant ERFC_D = 96784180000000000; 
+    int256 internal constant ERFC_E = -186288060000000000; 
+    int256 internal constant ERFC_F = 278868070000000000; 
+    int256 internal constant ERFC_G = -1_135203980000000000;
+    int256 internal constant ERFC_H = 1_488515870000000000;
+    int256 internal constant ERFC_I = -822152230000000000; 
+    int256 internal constant ERFC_J = 170872770000000000;
 
     error AbsOverflow();
     error ParamOOB();
 
     function abs(int256 x) internal pure returns (uint256 y) 
     {
-        if(x == type(int256).min) revert AbsOverflow();
-        if(x < 0) 
-        {
-            assembly 
-            {
+        if (x == type(int256).min) revert AbsOverflow();
+        if (x < 0) {
+            assembly {
                 y := add(not(x), 1)
             }
-        } 
-        else 
-        {
-            assembly 
-            {
+        } else {
+            assembly {
                 y := x
             }
         }
     }
 
-
     /*
-    Approximation is from https://arxiv.org/pdf/2206.12601
+        erfc(x) =  1 - erf(x) = 2/sqrt(pi) int^{\infty}_{x}e^-t^2dt
     */
-    function compute_cdf_approximation(uint256 z) internal pure returns (uint256) 
-    {   
+    function erfc(bytes16 x) internal pure returns (bytes16)
+    {
+        bytes16 one = ABDKMathQuad.fromUInt(WAD);
+        // Set to 18 decimal precision
+        bytes16 z = ABDKMathQuad.abs(x).mul(one);
+        // Compute t = 1 / (1 + 0.5 * z)
+        bytes16 t = ABDKMathQuad.fromUInt(1).div(ABDKMathQuad.fromUInt(1).add(z.div(ABDKMathQuad.fromUInt(2))));
 
-        uint256[16] memory k = [
-        uint256(53736600000),
-        uint256(726707690000000000),
-        uint256(922900000000),
-        uint256(53498000000000),
-        uint256(90342000000000),
-        uint256(104944800000000),
-        uint256(3026361100000000),
-        uint256(299472642000000),
-        uint256(198173433000000),
-        uint256(94285766000000),
-        uint256(31366467000000),
-        uint256(7152436600000),
-        uint256(1095506130000),
-        uint256(107995900000),
-        uint256(6208087000),
-        uint256(158537100)
-        ];
-        uint256 alpha1 = k1;
-        uint256 alpha2 = 0;
-        for(uint8 i = 0; i < 16; i++) {
-            uint256 term = FixedPointMathLib.mulWadUp(k[i], uint256(FixedPointMathLib.powWad(int256(z), int256((i+1) * WAD))));
-            if(i == 2 || i == 3 || i == 4 || i == 6 || i == 8 || i == 10 || i == 14) {
-                alpha2 += term;
-            } else {
-                alpha1 += term;
-            }
+        bytes16 k;
+        bytes16 step;
+        // Avoid stack overflow with separate context
+        // Divide constants by 1e18 so no overflow while computations are performed
+        {   
+            bytes16 _t = t;
+            step =ABDKMathQuad.fromInt(ERFC_F).div(one)
+            .add(_t.mul(ABDKMathQuad.fromInt(ERFC_G).div(one)
+            .add(_t.mul(ABDKMathQuad.fromInt(ERFC_H).div(one)
+            .add(_t.mul(ABDKMathQuad.fromInt(ERFC_I).div(one)
+            .add(_t.mul(ABDKMathQuad.fromInt(ERFC_J).div(one)))))))));
         }
-        
-        bool is_negative = alpha1 <= alpha2;
-        uint256 alpha = is_negative ? alpha2 - alpha1 : alpha1 - alpha2;
-        
-        int256 exponent = int256(FixedPointMathLib.mulWadDown(z, alpha));
-        
-        uint256 expResult;
-        if (is_negative) {
-            // If alpha is negative, we need to calculate e^x directly
-            expResult = uint256(FixedPointMathLib.expWad(exponent));
-        } else {
-            // If alpha is positive, we calculate 1/e^x
-            expResult = FixedPointMathLib.divWadDown(WAD, uint256(FixedPointMathLib.expWad(exponent)));
+
+        {
+            bytes16 _t = t;
+            step = _t
+            .mul(ABDKMathQuad.fromInt(ERFC_B).div(one)
+            .add(_t.mul(ABDKMathQuad.fromInt(ERFC_C).div(one)
+            .add(_t.mul(ABDKMathQuad.fromInt(ERFC_D).div(one)
+            .add(_t.mul(ABDKMathQuad.fromInt(ERFC_E).div(one)
+            .add(_t.mul(step)))))))));
+
+            k = z.mul(z)
+            .neg()
+            .sub(ABDKMathQuad.fromInt(ERFC_A).div(one))
+            .add(step);
         }
-        
-        return FixedPointMathLib.divWadUp(WAD, WAD + expResult);
+        console.logBytes16(k);
+        bytes16 exp = k.exp();
+        console.logBytes16(exp);
+        bytes16 r = t.mul(exp);
+        console.logBytes16(r);
+        return r;
     }
-    function cdf(int256 z, int256 mu, uint256 sigma) internal pure returns (uint256) 
+
+    function cdf(int256 x, int256 mu, uint256 sigma) internal pure returns (uint256) 
     {
         if
         (
-            (abs(z) > RV_BOUND) ||
+            (abs(x) > RV_BOUND) ||
             (abs(mu) > MU_BOUND) ||
             (sigma > SIG_BOUND || sigma == 0)
         )
@@ -103,26 +107,23 @@ library DegeGauss {
             revert ParamOOB();
         }
 
-        int256 diff = z - mu;
-        if(diff == 0)
-        {
-            return 5e17;
-        }
-        bool is_negative = diff < 0;
+        // Normalize x ~ N(0,1)
+        bytes16 standardX = ABDKMathQuad.fromInt(x).sub(ABDKMathQuad.fromInt(mu))
+        .div(ABDKMathQuad.fromUInt(sigma).mul(ABDKMathQuad.fromUInt(SQRT_2)));
 
-        uint256 abs_diff = is_negative ? uint256(-diff) : uint256(diff);
-        
-        uint256 standardized_z = FixedPointMathLib.divWadDown(abs_diff, sigma);
-        
-        if(standardized_z >= RIGHT_TAIL_BOUND)
-        {
-            return is_negative ? 0 : WAD;
+        bytes16 erfcResult = erfc(standardX.neg());
+    
+        bytes16 half = ABDKMathQuad.fromUInt(HALF);
+        bytes16 result;
+        if (x-mu > 0) {
+            // 1 - r/2
+            result = ABDKMathQuad.fromUInt(WAD).sub(half.mul(erfcResult));
+        } else {
+            // r/2
+            result = half.mul(erfcResult);
         }
 
-        uint256 p = compute_cdf_approximation(standardized_z);
-        return is_negative ? WAD - p : p;
+        return ABDKMathQuad.toUInt(result);
     }
 
 }
-
-    
