@@ -28,7 +28,7 @@ contract DegeGaussTest is Test {
         
         for (uint i = 0; i < zValues.length; i++) {
             int256 z = zValues[i];
-            uint256 solidityResult = DegeGauss.cdf(z, 0, 1e18);
+            uint256 solidityResult = DegeGauss.cdf(z, 0, 1e19);
             
             string memory jsCode = string(abi.encodePacked(
                 getGaussianJs(),
@@ -62,15 +62,16 @@ contract DegeGaussTest is Test {
     }
 
     // Modified slightly by adding x/1e18 so we can normalize in JS and not lose precision
+    // Also changed from gaussian(mean, variance) to gaussian(mean, standardDeviation)
     // CHANGE 'const g = gaussian(mu,sigma)' IF TESTING OTHER PARAMETERIZATIONS!!!
     function getGaussianJs() internal pure returns (string memory) {
         return string(
             abi.encodePacked(
                 "const erfc=function(x){const z=Math.abs(x),t=1/(1+z/2),r=t*Math.exp(-z*z-1.26551223+t*(1.00002368+t*(0.37409196+t*(0.09678418+t*(-0.18628806+t*(0.27886807+t*(-1.13520398+t*(1.48851587+t*(-0.82215223+t*0.17087277)))))))));return x>=0?r:2-r};",
-                "const Gaussian=function(mean,variance){this.mean=mean;this.variance=variance;this.standardDeviation=Math.sqrt(variance)};",
+                "const Gaussian=function(mean,standardDeviation){this.mean=mean;this.standardDeviation=standardDeviation};",
                 "Gaussian.prototype.cdf=function(x){return 0.5*erfc(-((x/1e18)-this.mean)/(this.standardDeviation*Math.sqrt(2)))};",
-                "const gaussian=function(mean,variance){return new Gaussian(mean,variance)};",
-                "const g=gaussian(0,1);",
+                "const gaussian=function(mean,standardDeviation){return new Gaussian(mean,standardDeviation)};",
+                "const g=gaussian(0,10);",
                 "console.log(JSON.stringify(g.cdf("
             )
         );  
