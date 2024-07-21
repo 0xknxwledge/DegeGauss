@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
-import "abdk-libraries-solidity/ABDKMathQuad.sol";
+
 import "forge-std/Test.sol";
 import "../src/DegeGauss.sol";
 
@@ -9,7 +9,7 @@ contract DegeGaussTest is Test {
 
     function testCDFAccuracy() public {
         // Test cases
-        int256[] memory zValues = new int256[](15);
+        int256[] memory zValues = new int256[](16);
         zValues[0] = -1e23;
         zValues[1] = -5e22;
         zValues[2] = -1e22;
@@ -20,15 +20,16 @@ contract DegeGaussTest is Test {
         zValues[7] = 0;
         zValues[8] = 1e18;
         zValues[9] = 2e18;
-        zValues[10] = 1e21;
-        zValues[11] = 5e21;
-        zValues[12] = 1e22;
-        zValues[13] = 5e22;
-        zValues[14] = 1e23;
+        zValues[10] = 1e20;
+        zValues[11] = 1e21;
+        zValues[12] = 5e21;
+        zValues[13] = 1e22;
+        zValues[14] = 5e22;
+        zValues[15] = 1e23;
         
         for (uint i = 0; i < zValues.length; i++) {
             int256 z = zValues[i];
-            uint256 solidityResult = DegeGauss.cdf(z, 0, 1e19);
+            uint256 solidityResult = DegeGauss.cdf(z, 1e20, 1e19);
             
             string memory jsCode = string(abi.encodePacked(
                 getGaussianJs(),
@@ -71,7 +72,7 @@ contract DegeGaussTest is Test {
                 "const Gaussian=function(mean,standardDeviation){this.mean=mean;this.standardDeviation=standardDeviation};",
                 "Gaussian.prototype.cdf=function(x){return 0.5*erfc(-((x/1e18)-this.mean)/(this.standardDeviation*Math.sqrt(2)))};",
                 "const gaussian=function(mean,standardDeviation){return new Gaussian(mean,standardDeviation)};",
-                "const g=gaussian(0,10);",
+                "const g=gaussian(100,10);",
                 "console.log(JSON.stringify(g.cdf("
             )
         );  
