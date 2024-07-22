@@ -7,8 +7,10 @@
   - -1e20 ≤ μ ≤ 1e20
   - 0 < σ ≤ 1e19
   - x in [-1e23, 1e23]
-- High-precision and gas efficient computation using 128-bit IEEE 754 floating-point arithmetic
-- Max absolute error relative to errcw/gaussian on the order of 1e-17 (check Gauss.t.sol to verify and test out other parameterizations and realizations)
+- High-precision and gas efficient computation using 128-bit IEEE 754 floating-point arithmetic and Horner's Method for a complementary
+error function polynomial approximation 
+- Median fuzz test consumes ~53000 Gwei, has relative absolute error ~1e-16 compared to errcw/gaussian
+- Run "forge test --match-test testFuzzedCDFPrecisionStats -vvvvv" to verify 
 
 ## Usage
 
@@ -34,4 +36,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Inspired by [primitivefinance/solstat](https://github.com/primitivefinance/solstat) and [errcw/gaussian](https://github.com/errcw/gaussian)
 - Uses [ABDK Libraries for Solidity](https://github.com/abdk-consulting/abdk-libraries-solidity)
 - Submission for the following 2024 Paradigm Fellowship technical question:
-  - Implement a maximally optimized gaussian CDF on the EVM for arbitrary 18 decimal fixed point parameters x, μ, σ. Assume -1e20 ≤ μ ≤ 1e20 and 0 < σ ≤ 1e19. Should have an error less than 1e-8 vs 
+  - Implement a maximally optimized gaussian CDF on the EVM for arbitrary 18 decimal fixed point parameters x, μ, σ. Assume -1e20 ≤ μ ≤ 1e20 and 0 < σ ≤ 1e19. Should have an error less than 1e-8 vs errcw/gaussian for all x on the interval [-1e23, 1e23].

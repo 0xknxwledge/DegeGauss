@@ -7,79 +7,69 @@ import "../src/DegeGauss.sol";
 contract DegeGaussTest is Test {
     using DegeGauss for int256;
 
-    function testCDFAccuracy() public {
-        // Test cases
-        int256[] memory zValues = new int256[](17);
-        zValues[0] = -8e18;
-        zValues[1] = -7e18;
-        zValues[2] = -6e18;
-        zValues[3] = -5e18;
-        zValues[4] = -4e18;
-        zValues[5] = -3e18;
-        zValues[6] = -2e18;
-        zValues[7] = -1e18;
-        zValues[8] = 0;
-        zValues[9] = 1e18;
-        zValues[10] = 2e18;
-        zValues[11] = 3e18;
-        zValues[12] = 4e18;
-        zValues[13] = 5e18;
-        zValues[14] = 6e18;
-        zValues[15] = 7e18;
-        zValues[16] = 8e18;
+    function testFuzzedCDFPrecision(int256 mu, uint256 sigma, int256 x) public 
+    {
+        // Bound the input parameters according to the specification
+        mu = bound(mu, -1e20, 1e20);
+        sigma = bound(sigma, 1, 1e19); 
+        x = bound(x, -1e23, 1e23);
+
+        // Measure gas consumption
+        uint256 gasBefore = gasleft();
+
+        // Calculate CDF using Solidity implementation
+        uint256 solidityResult = DegeGauss.cdf(x, mu, sigma);
+
+        // Calculate gas consumed
+        uint256 gasConsumed = gasBefore - gasleft();
+
+        // Prepare JavaScript code for comparison
+        // Modified to accept standard deviation and return 0 for values that cannot be converted to 18 fixed point precision 
+        string memory jsCode = string(abi.encodePacked(
+            "const erfc=function(x){const z=Math.abs(x),t=1/(1+z/2),r=t*Math.exp(-z*z-1.26551223+t*(1.00002368+t*(0.37409196+t*(0.09678418+t*(-0.18628806+t*(0.27886807+t*(-1.13520398+t*(1.48851587+t*(-0.82215223+t*0.17087277)))))))));return x>=0?r:2-r};",
+            "const Gaussian=function(mean,standardDeviation){this.mean=mean;this.standardDeviation=standardDeviation};",
+            "Gaussian.prototype.cdf=function(x){return 0.5*erfc(-((x)-this.mean)/(this.standardDeviation*Math.sqrt(2)))};",
+            "const gaussian=function(mean,standardDeviation){return new Gaussian(mean,standardDeviation)};",
+            "const g=gaussian(",
+            vm.toString(mu),
+            ",",
+            vm.toString(sigma),
+            ");",
+            "const result = g.cdf(",
+            vm.toString(x),
+            ");",
+            "const fixedPointResult = result < 1e-18 ? 0 : (result >= 1 ? 1 : result);",
+            "console.log(JSON.stringify(fixedPointResult));"
+        ));
+
+        string[] memory inputs = new string[](3);
+        inputs[0] = "node";
+        inputs[1] = "-e";
+        inputs[2] = jsCode;
+        uint256 jsResultParsed = parseJsonResult(string(vm.ffi(inputs)));
+
+        // Calculate the absolute error
+        uint256 diff = solidityResult >= jsResultParsed ? 
+            solidityResult - jsResultParsed : 
+            jsResultParsed - solidityResult;
         
-        for (uint i = 0; i < zValues.length; i++) {
-            int256 z = zValues[i];
-            uint256 solidityResult = DegeGauss.cdf(z, 0, 1e18);
-            
-            string memory jsCode = string(abi.encodePacked(
-                getGaussianJs(),
-                vm.toString(int(z)),
-                ")));"
-            ));
+        // Log results
+        console.log("x:", x);
+        console.log("mu:", mu);
+        console.log("sigma:", sigma);
+        console.log("Solidity result:", solidityResult);
+        console.log("JS result:", jsResultParsed);
+        console.log("Absolute Error:", diff);
+        console.log("Gas consumed:", gasConsumed);
+        console.log("---");
 
-            string[] memory inputs = new string[](3);
-            inputs[0] = "node";
-            inputs[1] = "-e";
-            inputs[2] = jsCode;
+        // Assert that the difference is less than 1e10 (1e-8 in our fixed-point representation)
+        assertLe(diff, 1e10, "CDF approximation differs by more than 1e-8");
 
-            bytes memory jsResult = vm.ffi(inputs);
-            uint256 jsResultParsed = parseJsonResult(string(jsResult));
-
-            // Calculate the absolute error
-            uint256 diff = solidityResult >= jsResultParsed ? 
-                solidityResult - jsResultParsed : 
-                jsResultParsed - solidityResult;
-            
-            console.log("z (in 18 decimal precision):", z);
-            console.log("Solidity result:", solidityResult);
-            console.log("JS result:", jsResultParsed);
-            console.log("Absolute Error:", diff);
-            console.log("---");
-
-            // Assert that the difference is less than 1e10 (1e-8 in our fixed-point representation)
-            assertLe(diff, 1e10, "CDF approximation differs by more than 1e-8");
-        }
     }
 
-    // Modified slightly by adding x/1e18 so we can normalize in JS and not lose precision
-    // Also changed from gaussian(mean, variance) to gaussian(mean, standardDeviation)
-    // CHANGE 'const g = gaussian(mu,sigma)' IF TESTING OTHER PARAMETERIZATIONS!!!
-    function getGaussianJs() internal pure returns (string memory) {
-        return string(
-            abi.encodePacked(
-                "const erfc=function(x){const z=Math.abs(x),t=1/(1+z/2),r=t*Math.exp(-z*z-1.26551223+t*(1.00002368+t*(0.37409196+t*(0.09678418+t*(-0.18628806+t*(0.27886807+t*(-1.13520398+t*(1.48851587+t*(-0.82215223+t*0.17087277)))))))));return x>=0?r:2-r};",
-                "const Gaussian=function(mean,standardDeviation){this.mean=mean;this.standardDeviation=standardDeviation};",
-                "Gaussian.prototype.cdf=function(x){return 0.5*erfc(-((x/1e18)-this.mean)/(this.standardDeviation*Math.sqrt(2)))};",
-                "const gaussian=function(mean,standardDeviation){return new Gaussian(mean,standardDeviation)};",
-                "const g=gaussian(0,1);",
-                "console.log(JSON.stringify(g.cdf("
-            )
-        );  
-    }
-
-
-    function parseJsonResult(string memory result) internal pure returns (uint256) {
+    function parseJsonResult(string memory result) internal pure returns (uint256) 
+    {
         bytes memory resultBytes = bytes(result);
         uint256 value = 0;
         uint256 decimalPlace = 0;
