@@ -7,10 +7,11 @@
   - -1e20 ≤ μ ≤ 1e20
   - 0 < σ ≤ 1e19
   - x in [-1e23, 1e23]
-- High-precision and gas efficient computation using 128-bit IEEE 754 floating-point arithmetic and Horner's Method for a complementary
+- High-precision computation using 128-bit IEEE 754 floating-point arithmetic and Horner's Method for a complementary
 error function polynomial approximation 
-- Median fuzz test consumes ~53000 Gwei, has relative absolute error ~1e-16 compared to errcw/gaussian
+- Median fuzz test consumes ~53000 gas (a little over two ETH transfers), has relative absolute error ~1e-16 compared to errcw/gaussian
 - Run "forge test --match-test testFuzzedCDFPrecisionStats -vvvvv" to verify 
+- TODO: Get gas consumption down while preserving precision
 
 ## Usage
 
