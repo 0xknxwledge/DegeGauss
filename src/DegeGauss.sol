@@ -59,7 +59,7 @@ library DegeGauss {
     function erfc(bytes16 z) internal pure returns (bytes16)
     {
         // Set to 18 decimal precision
-        bytes16 z = ABDKMathQuad.abs(z).mul(ONE);
+        z = ABDKMathQuad.abs(z).mul(ONE);
         // Compute t = 1 / (1 + z/2)
         bytes16 t = LIL_ONE.div(LIL_ONE.add(z.div(LIL_TWO)));
 
